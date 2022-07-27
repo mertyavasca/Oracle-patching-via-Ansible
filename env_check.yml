@@ -1,0 +1,99 @@
+- name: Database patch env check playbook
+   hosts: "{{host_name}}"
+## Bu play sunucunun patch için uygun olup olmadığının kontrolünü yapar.
+   tasks:
+##işletim sisteminin tipini kontrol eder.
+
+   - name: Check the os type
+     shell: uname
+     ignore_errors: yes
+     register: uname_result
+
+## AIX veya Linux değilse play'i sonlandırır.
+
+   - name: Fail if OS is not AIX nor Linux
+     fail:
+         msg: "This OS is not Linux nor AIX, terminating playbook,"
+     when:
+     - uname_result.stdout != "Linux"
+     - uname_result.stdout != "AIX"
+
+   - name: Os AIX Check Output
+     debug:
+        msg: "This server is AIX"
+     when: uname_result.stdout == "AIX"
+
+   - name: Os Linux Check Output
+     debug:
+        msg: "This server is Linux"
+     when: uname_result.stdout == "Linux"
+## Oracle userı var mı onu kontrol eder.
+
+   - name: Check oracle user exists
+     command: id oracle
+     register: oracle_user
+     ignore_errors: True
+
+   - name: Fail when no oracle database in the system
+     fail:
+         msg: "There is no oracle database installed in this server"
+     when: oracle_user.rc != 0
+
+## Açık db var mı onu kontrol eder.
+
+   - name: Check Oracle instance status
+     shell: ps -ef|grep pmon|grep -v grep
+     register: grep_pmon_result
+     ignore_errors: yes
+
+   - name: Fail when no oracle instance is running
+     fail:
+         msg: "There is no oracle instance running"
+     when: grep_pmon_result.rc != 0
+
+## /oracle diskindeki boş yeri kontrol eder. Patch için gerekli değer hardcoded şeklindedir, ihtiyaca göre değişmeli. (örnek 21433696)
+
+   - name: check free space on server
+     shell: df -P /oracle/ | tail -n 1 | awk '{ print $4 }' | cut -d'%' -f1
+     register: free_space
+
+   - name: not enough space output
+     fail:
+        msg: "There is no free space  in this server"
+     when: free_space.stdout|int < 21433696
+
+   - name: free space output
+     debug:
+        msg: "There is enough free space on /oracle disk in this server, {{ free_space.stdout }} kb"
+     when: free_space.stdout|int > 21433696
+
+## Database'in şuanki patch seviyesini kontrol eder.
+
+   - name: Oracle database patch info
+     become: yes
+     become_user: oracle
+     shell: |
+       . ~oracle/.profile
+       $ORACLE_HOME/OPatch/opatch lspatches | grep "Database Release Update" | awk '{print $5}'
+     args:
+      executable: /bin/bash
+     register: patch_result
+
+## Db 19c değilse play'i sonlandırır (Raclarda da kesiyor bu işi)
+
+   - name: Fail database version is not correct
+     fail:
+      msg: "Database version is not 19c"
+     when: patch_result.stdout[:2] != "19"
+
+## Db daha önce patchlenmişse play'i sonlandırır. Patch level hard coded, her patchte yenilenmeli. (19.15)
+
+   - name: Fail database patch version is not correct
+     fail:
+      msg: "Database is already patched"
+     when: patch_result.stdout[:5] == "19.15"
+
+   - name: Database version is correct
+     debug:
+      msg: "Database version is 19c and current patch level is {{patch_result.stdout[:5]}}"
+     when: patch_result.stdout[:5] != "19.15"

@@ -1,0 +1,15 @@
+- name: Clean old things
+  hosts: "{{host_name}}"
+  gather_facts: no
+
+  tasks:
+
+  - name: Remove oraInventory.old and {ORACLE_HOME}.old if exists
+    become: yes
+    become_user: oracle
+    file:
+     path: "{{ item }}"
+     state: absent
+    with_items:
+      - {{ORACLE_HOME}}.old
+      - /oracle/oraInventory.old
