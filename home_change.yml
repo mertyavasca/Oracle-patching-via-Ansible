@@ -4,11 +4,11 @@
 ## Bu play patchlenmiş oracle home ile patchlenmemiş oracle home'un yerini değiştirir ve runInstaller çalıştırır.
   tasks:
 ## {{ORACLE_HOME}}.old kontrolu yapar
-  - name: check if teb_ora19c.old exists
+  - name: check if {{ORACLE_HOME}}.old exists
     stat:
        path: "{{ORACLE_HOME}}.old"
     register: file_exists
-## teb_ora19c.old varsa işin yarıda kesildiğini düşünüp play'i sonlandırır.
+## {{ORACLE_HOME}}.old varsa işin yarıda kesildiğini düşünüp play'i sonlandırır.
   - name: Fail if {{ORACLE_HOME}}.old exist
     fail:
       msg: "There is {{ORACLE_HOME}}.old, check server"
