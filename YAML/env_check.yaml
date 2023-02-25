@@ -1,15 +1,15 @@
 - name: Database patch env check playbook
    hosts: "{{host_name}}"
-## Bu play sunucunun patch için uygun olup olmadığının kontrolünü yapar.
+## This play checks whether the server is available for the patch.
    tasks:
-##işletim sisteminin tipini kontrol eder.
+## Checks the type of operating system.
 
    - name: Check the os type
      shell: uname
      ignore_errors: yes
      register: uname_result
 
-## AIX veya Linux değilse play'i sonlandırır.
+## Terminates play if not AIX or Linux.
 
    - name: Fail if OS is not AIX nor Linux
      fail:
@@ -27,7 +27,7 @@
      debug:
         msg: "This server is Linux"
      when: uname_result.stdout == "Linux"
-## Oracle userı var mı onu kontrol eder.
+## It checks if there is an Oracle user.
 
    - name: Check oracle user exists
      command: id oracle
@@ -39,7 +39,7 @@
          msg: "There is no oracle database installed in this server"
      when: oracle_user.rc != 0
 
-## Açık db var mı onu kontrol eder.
+## It checks if there is an open database.
 
    - name: Check Oracle instance status
      shell: ps -ef|grep pmon|grep -v grep
@@ -51,7 +51,7 @@
          msg: "There is no oracle instance running"
      when: grep_pmon_result.rc != 0
 
-## /oracle diskindeki boş yeri kontrol eder. Patch için gerekli değer hardcoded şeklindedir, ihtiyaca göre değişmeli. (örnek 21433696)
+## Checks for free space on the /oracle disk. The required value for the patch is in the form of hardcoded, it should change according to the need. (example 21433696)
 
    - name: check free space on server
      shell: df -P /oracle/ | tail -n 1 | awk '{ print $4 }' | cut -d'%' -f1
@@ -67,7 +67,7 @@
         msg: "There is enough free space on /oracle disk in this server, {{ free_space.stdout }} kb"
      when: free_space.stdout|int > 21433696
 
-## Database'in şuanki patch seviyesini kontrol eder.
+## Checks the current patch level of the database.
 
    - name: Oracle database patch info
      become: yes
@@ -79,21 +79,21 @@
       executable: /bin/bash
      register: patch_result
 
-## Db 19c değilse play'i sonlandırır (Raclarda da kesiyor bu işi)
+## If the db is not 19c, it terminates the play
 
    - name: Fail database version is not correct
      fail:
       msg: "Database version is not 19c"
      when: patch_result.stdout[:2] != "19"
 
-## Db daha önce patchlenmişse play'i sonlandırır. Patch level hard coded, her patchte yenilenmeli. (19.15)
+## If the db has been patched before, it will terminate the play. Patch level hard coded must be renewed every patch. (19.18)
 
    - name: Fail database patch version is not correct
      fail:
       msg: "Database is already patched"
-     when: patch_result.stdout[:5] == "19.15"
+     when: patch_result.stdout[:5] == "19.18"
 
    - name: Database version is correct
      debug:
       msg: "Database version is 19c and current patch level is {{patch_result.stdout[:5]}}"
-     when: patch_result.stdout[:5] != "19.15"
+     when: patch_result.stdout[:5] != "19.18"
