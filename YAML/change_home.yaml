@@ -1,19 +1,19 @@
 - name: Home change
   hosts: "{{host_name}}"
   gather_facts: no
-## Bu play patchlenmiş oracle home ile patchlenmemiş oracle home'un yerini değiştirir ve runInstaller çalıştırır.
+## This play replaces the patched oracle home with the unpatched oracle home and runs runInstaller.
   tasks:
-## {{ORACLE_HOME}}.old kontrolu yapar
+## {{ORACLE_HOME}}.old control if exist
   - name: check if {{ORACLE_HOME}}.old exists
     stat:
        path: "{{ORACLE_HOME}}.old"
     register: file_exists
-## {{ORACLE_HOME}}.old varsa işin yarıda kesildiğini düşünüp play'i sonlandırır.
+## If {{ORACLE_HOME}}.old exists, it thinks the job is interrupted and ends the play.
   - name: Fail if {{ORACLE_HOME}}.old exist
     fail:
       msg: "There is {{ORACLE_HOME}}.old, check server"
     when: file_exists.stat.exists
-## patchlenmiş home ile patchlenmemiş home'un yerini değiştirir, boş bir oraInventory create eder (runInstaller için)
+## Replaces patched home with unpatched home, creates an empty oraInventory (for runInstaller)
   - name: Create new directory
     become: yes
     become_user: oracle
@@ -23,7 +23,7 @@
       - mkdir -p /oracle/oraInventory
       - mv {{ORACLE_HOME}} {{ORACLE_HOME}}.old
       - mv {{ORACLE_HOME}}.new {{ORACLE_HOME}}
-## oracle profile'ı yükler. Home_kurulum.sh'i çalıştırır.
+## Loads the oracle profile. Runs home_setup.sh.
   - name: set db profiles
     become: yes
     become_user: oracle
@@ -34,7 +34,7 @@
       executable: /bin/bash
     register: software_result
     ignore_errors: True
-##sh'in sonucuna göre play'i keser ya da devam eder.
+## Interrupts or continues play depending on the result of sh.
   - name: check success or not
     debug:
      msg: "software installation is succeed"
