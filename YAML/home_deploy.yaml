@@ -4,7 +4,7 @@
    become_user: oracle
    become_method: sudo
    gather_facts: no
-## Bu play sunucuya yeni home'u deploy eder.
+## This play deploys the new home to the server.
    tasks:
 
    - name: Check the os type
@@ -12,7 +12,7 @@
      ignore_errors: yes
      register: uname_result
 
-## Oracle db version'ı alır.
+## Gets Oracle db version.
 
    - name: Get oracle database version
      shell: |
@@ -24,21 +24,21 @@
        executable: /bin/bash
      register: oracle_version
 
-## {{ORACLE_HOME}}.new'in varlığını kontrol eder.
+## Checks for the existence of {{ORACLE_HOME}}.new.
 
    - name: check if {{ORACLE_HOME}}.new exists
      stat:
         path: "{{ORACLE_HOME}}new"
      register: file_exists
 
-## {{ORACLE_HOME}}.new varsa bir önceki patchin düzgün olmadığını varsayar, play'i sonlandırır.
+## If {{ORACLE_HOME}}.new is present, it assumes that the previous patch was not correct, and terminates the play.
 
    - name: Fail if {{ORACLE_HOME}}new exist
      fail:
        msg: "There is {{ORACLE_HOME}}.new, check server"
      when: file_exists.stat.exists
 
-## yeni home dizinini oluşturur.
+## Creates the new home directory.
 
    - name: Create new directory
      become: yes
@@ -46,41 +46,41 @@
      command: "{{ item }}"
      loop:
        - mkdir -p {{ORACLE_HOME}}.new
-## OS'e göre satellite'den yeni home indirir ( burada tekrar 19c kontrolü var gibi )
+## According to the OS it downloads new home from satellite (it looks like 19c control here again)
 
    - name: AIX home deployment
      become: yes
      become_user: oracle
      get_url:
-       url: {{ SATELLITE SERVER FOR AIX GOLDIMAGE }}
+       url: {{ SATELLITE LINK FOR AIX GOLDIMAGE }}
        dest: {{ORACLE_HOME}}.new
        mode: '0440'
      when: uname_result.stdout == "AIX" and oracle_version.stdout[:4] == "19.0"
 
    - name: Linux home deployment
      get_url:
-       url: {{ SATELLITE SERVER FOR Linux GOLDIMAGE }}
+       url: {{ SATELLITE LINK FOR Linux GOLDIMAGE }}
        dest: {{ORACLE_HOME}}.new
        mode: '0440'
      when: uname_result.stdout == "Linux" and oracle_version.stdout[:4] == "19.0"
 
-## indirdiği yeni home'u unzip eder. Isımler hardcoded değiştirilmeli.
+## It unzips the new home it downloaded. Names should be changed hardcoded.
 
    - name: Home unzip for linux
      unarchive:
-       src: {{ORACLE_HOME}}.new/Linux_1915.zip
+       src: {{ORACLE_HOME}}.new/Linux_1918.zip
        dest: {{ORACLE_HOME}}.new
        remote_src: yes
      when: uname_result.stdout == "Linux" and oracle_version.stdout[:4] == "19.0"
 
    - name: Home unzip for AIX
      unarchive:
-       src: {{ORACLE_HOME}}new/AIX_1915.zip
+       src: {{ORACLE_HOME}}new/AIX_1918.zip
        dest: {{ORACLE_HOME}}new
        remote_src: yes
      when: uname_result.stdout == "AIX" and oracle_version.stdout[:4] == "19.0"
 
-## Eski home'daki network ve dbs altını yeni home'a kopyalar.
+## It copies the network and dbs gold from the old home to the new home.
 
    - name: Copy /network from old to new home
      copy:
